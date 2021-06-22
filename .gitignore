@@ -33,6 +33,7 @@
 *.pcm
 *.root
 *.log
+*.dat
 
 # PDF Files
 *.pdf

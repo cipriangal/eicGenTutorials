@@ -19,7 +19,7 @@ if test -f "$OUTFILE3"; then
         rm -f "$OUTFILE3"
 fi
 
-/cvmfs/sphenix.opensciencegrid.org/x8664_sl7/MCEG/releases/env/dev/bin/djangoh < ep.Rad=0.NC.in > logfiles/ep.Rad=0.NC.log
+/cvmfs/eic.opensciencegrid.org/x8664_sl7/MCEG/releases/env/dev/bin/djangoh < ep.Rad=0.NC.in > logfiles/ep.Rad=0.NC.log
 
 echo "Completed Simulation!!!"
 echo ""
