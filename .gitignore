@@ -34,6 +34,7 @@
 *.root
 *.log
 *.dat
+*.txt
 
 # PDF Files
 *.pdf
