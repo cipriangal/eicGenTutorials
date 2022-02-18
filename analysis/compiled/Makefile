@@ -7,7 +7,7 @@ ROOTGLIBS   := $(shell $(ROOTCONFIG) --glibs)
 
 CXX         := g++
 
-INCLUDES    := -I${ONLINE_MAIN}/include
+INCLUDES    := -I${EICDIRECTORY}/include
 DEFINES     := -DWITHRINT
 CXXFLAGS    := -O2 -Wall -fPIC $(ROOTCFLAGS) $(INCLUDES) $(DEFINES)
 
@@ -15,7 +15,7 @@ LD          := g++
 LDFLAGS     := -O2 $(ROOTLDFLAGS)
 
 LIBS        := $(ROOTGLIBS)                               \
-	       -L${ONLINE_MAIN}/lib -leicsmear
+	       -L${EICDIRECTORY}/lib -leicsmear
 SRC_FILES   := $(wildcard *.cxx)
 EXE_FILES   := $(SRC_FILES:%.cxx=%) 
 

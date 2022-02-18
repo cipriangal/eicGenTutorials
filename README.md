@@ -33,7 +33,6 @@ To run BeAGLE, do the following in addition:
 > cd beagle  
 > source beagle_setup.sh (or beagle_setup.csh if on C shell)  
 
-To run the compiled analysis, use Makefile.SDCC
 <br/>
 
 

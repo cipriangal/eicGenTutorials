@@ -5,7 +5,7 @@ echo "Running PYTHIA Simulation for ep Collider!!!"
 echo "..."
 echo ""
 
-pythiaeRHIC --out=outfiles/ep_10_100_norad_def.root < input.data_noradcor.eic > logfiles/ep_10_100_norad.log #default root file only created on sPhenix account
+pythiaeRHIC < input.data_noradcor.eic > logfiles/ep_10_100_norad.log
 
 echo "Completed Simulation!!!"
 echo ""

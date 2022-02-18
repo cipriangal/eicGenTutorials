@@ -35,6 +35,7 @@
 *.log
 *.dat
 *.txt
+*.hepmc
 
 # PDF Files
 *.pdf
