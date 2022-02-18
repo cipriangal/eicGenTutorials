@@ -22,7 +22,7 @@ To run BeAGLE, do the following in addition:
 > cd beagle  
 > source beagle_setup.sh  
 
-N.B. The above links for the Singularity container and Virtual Box instruct the user to source the Fun4All environment after entering the container (e.g. source setup.sh right after entering the container in the Virtual Box). You should not do this if you want to run the above generators and eic-smear only. Just source the SDCC_setup.sh script as descibed above.
+N.B. The above links for the Singularity container and Virtual Box instruct the user to source the Fun4All environment after entering the container (e.g. running <ins>source setup.sh</ins> right after entering the container in the Virtual Box). You should not do this if you want to run the above generators and eic-smear only. Just source the SDCC_setup.sh script as descibed above.
 
 <hr/>
 
