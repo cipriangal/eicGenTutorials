@@ -12,7 +12,8 @@ Run the following command to enter the singularity container environment:
 
 or
 
-> singularity shell -B /cvmfs:/cvmfs /cvmfs/eic.opensciencegrid.org/singularity/rhic_sl7_ext.simg (Singularity install)
+> singularity shell -B /cvmfs:/cvmfs /cvmfs/eic.opensciencegrid.org/singularity/rhic_sl7_ext.simg (Singularity install option 1)  
+> singularity shell -B cvmfs:/cvmfs cvmfs/eic.opensciencegrid.org/singularity/rhic_sl7_ext.simg   (Singularity install option 2)  
 
 Once in the container, setup the EIC environment.
 > cd eicGenTutorials  
