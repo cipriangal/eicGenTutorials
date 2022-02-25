@@ -1,0 +1,61 @@
+OUTFILENAM
+outfiles/djangoh.CC.18x275
+TITLE
+DJANGOH 4.6.10 for eRHIC for PR, NLO at 18x275, Wmin=10
+EL-BEAM
+             18D0    0.0D0    1
+PR-BEAM
+            275D0   0.0D0
+GSW-PARAM
+            2 0 3 1 0 0 2 1 1 1 1
+KINEM-CUTS
+            3   0.0001D0  1.00D0  0.01D0  0.95D0  100.0D0  1D5  10.D00
+EGAM-MIN
+            0D0
+INT-OPT-NC
+            0 0 0 0 0  0 0 0 0 
+INT-OPT-CC
+            1 0 0 0 
+INT-ONLY
+            1
+INT-POINTS
+            30000
+SAM-OPT-NC
+            0 0 0 0 0  0 0 0 0 
+SAM-OPT-CC
+            1 0 0 0
+NUCLEUS
+            275D0   1.0D0 1.0D0
+NUCL-MOD
+            0
+STRUCTFUNC
+            0  2  60700 
+POLPDF
+            0 
+LHAPATH
+./PDFsets
+FLONG
+            0  0.01  0.03
+ALFAS
+            1   0   0.20   0.235
+NFLAVORS
+            0   5
+IOUNITS
+            6  10  11
+RNDM-SEEDS
+            -1 -1
+START
+            1000 
+SOPHIA
+            1.5
+OUT-LEP
+            1
+FRAG
+            1
+CASCADES
+            1
+MAX-VIRT
+            5
+CONTINUE
+
+
