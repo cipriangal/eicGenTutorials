@@ -1,7 +1,10 @@
 # eicGenTutorials
-This repository provides a starting setup for eic generator tutorials.
-<br/>
-<br/>
+This repository provides a starting setup for using our EIC event generators. It also provides example generator-level analysis code, as well as example fast smearing code.
+
+**Start by reading [this document](https://drive.google.com/file/d/1RiiveVGhMEIzmtNQYr4a2U0ghGo0w3Hl/view?usp=sharing).**
+
+<hr/>
+<hr/>
 
 If you are working on the [Singularity container](https://github.com/eic/Singularity) or [Virtual Box](https://github.com/eic/Singularity/blob/master/VirtualBox.md), do the following:
 
