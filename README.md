@@ -6,7 +6,7 @@ This repository provides a starting setup for using our EIC event generators. It
 <hr/>
 <hr/>
 
-If you are working on the [Singularity container](https://github.com/eic/Singularity) or [Virtual Box](https://github.com/eic/Singularity/blob/master/VirtualBox.md), do the following:
+If you are working on the [Singularity container](https://github.com/ECCE-EIC/Singularity) or [Virtual Box](https://github.com/eic/Singularity/blob/master/VirtualBox.md), do the following:
 
 First clone this repository. 
 
