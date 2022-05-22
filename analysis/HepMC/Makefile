@@ -16,7 +16,7 @@ LDFLAGS     := -O2 $(ROOTLDFLAGS)
 
 LIBS        :=  -L${EICDIRECTORY}/lib -Wl,-rpath,${EICDIRECTORY}/lib -ldl \
 		$(ROOTGLIBS)                                              \
-	       -L${EICDIRECTORY}/lib64 -lHepMC3
+	       -L${EICDIRECTORY}/lib64 -lHepMC3 -lHepMC3rootIO
 SRC_FILES   := $(wildcard *.cxx)
 EXE_FILES   := $(SRC_FILES:%.cxx=%) 
 
