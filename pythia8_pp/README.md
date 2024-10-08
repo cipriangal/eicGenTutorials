@@ -6,9 +6,9 @@ The files in this directory will allow you to simulate proton-proton collisions 
 ./RHIC_pp RHIC_pp.cmnd RHIC_pp.hepmc
 ```
 
-The simulation configuration is set in the file <i>RHIC_pp.cmnd</i>. (The energy is currently set to a RHIC beam energy setting, hence the file names.) You can make changes to the parameters in the configuration file and run a new simulation without recompiling.
+The simulation configuration is set in the file [RHIC_pp.cmnd](RHIC_pp.cmnd). (The energy is currently set to a RHIC beam energy setting, hence the file names.) You can make changes to the parameters in the configuration file and run a new simulation without recompiling.
 
-The output file is in HepMC3 format and is called <i>RHIC_pp.hepmc</i>. This file can be converted to a ROOT file for easier analysis.
+The output file is in HepMC3 format and is called [RHIC_pp.hepmc](RHIC_pp.hepmc). This file can be converted to a ROOT file for easier analysis by using, for example, [this writer](https://github.com/cipriangal/eicGenTutorials/blob/main/analysis/HepMC/rootIOTree_example_write.cxx). An simple example analysis can be found in the [analysis](analysis) subfolder.
 
 Comments on process selection
 -----------------------------
