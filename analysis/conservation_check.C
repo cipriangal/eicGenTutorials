@@ -31,7 +31,7 @@ void conservation_check(){
   int id(0);
 
   //Define Histograms
-  TH1 *h1 = new TH1D("h1","Enegy conservation ",200,-10,10);
+  TH1 *h1 = new TH1D("h1","Energy conservation ",200,-10,10);
   h1->GetXaxis()->SetTitle("E_{out} - E_{in} [GeV]");h1->GetXaxis()->CenterTitle();
   h1->SetLineWidth(3);h1->SetLineColor(kBlue);
 
