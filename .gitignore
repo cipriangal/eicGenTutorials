@@ -39,3 +39,4 @@
 
 # PDF Files
 *.pdf
+!documents/*
