@@ -37,6 +37,8 @@ To run BeAGLE, do the following in addition:
 > cd beagle  
 > source beagle_setup.sh (or beagle_setup.csh if on C shell)  
 
+**N.B. These instructions for working on the SDCC were developed for the RHEL7 machines.**
+
 <br/>
 
 

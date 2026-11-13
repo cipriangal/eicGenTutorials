@@ -16,6 +16,8 @@ You should not turn on both hard and soft processes at the same time. When runni
 
 Running on SDCC
 ---------------
+**This procedure worked on the RHEL7 machines. I have not tested it on the ALMA9 machines. You can also try to run the simulation in the ePIC eic-shell container.**
+
 If running on SDCC, you may wish to use the most up-to-date environment instead of the default <i>dev</i> one:
 
 ```

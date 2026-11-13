@@ -1,206 +1,342 @@
-void forward_hadrons(){
+// forward_hadrons.C
+//
+// Forward (2.5 < eta < 4.0) charged-hadron analysis of Pythia8 events that
+// were written to HepMC3 and converted to a ROOT tree ("hepmc3_tree").
+//
+// Input file is built as:  <indir>/<energy>/RHIC_pp_<sample>.root
+//
+// Usage (interpreted):
+//   root -l -b -q 'forward_hadrons.C("510GeV","hard_ptmin3")'
+//   root -l -b -q 'forward_hadrons.C("510GeV","soft")'
+//   root -l -b -q 'forward_hadrons.C("200GeV","soft","../out")'
+// Usage (compiled with ACLiC -- noticeably faster for large files):
+//   root -l -b -q 'forward_hadrons.C+("510GeV","soft")'
+//
+// Output: forward_hadrons_<energy>_<sample>.pdf
+//
+// sqrt(s) is taken event-by-event from the two beam particles (HepMC status 4).
+// If they are not found, it falls back to the number at the start of <energy>
+// (e.g. "510GeV" -> 510).
 
-    //Define Style
+#include "TFile.h"
+#include "TTree.h"
+#include "TTreeReader.h"
+#include "TTreeReaderArray.h"
+#include "TH1D.h"
+#include "TH2D.h"
+#include "TCanvas.h"
+#include "TLegend.h"
+#include "TLatex.h"
+#include "TLine.h"
+#include "TStyle.h"
+#include "TString.h"
+#include "TAxis.h"
+
+#include <array>
+#include <cmath>
+#include <cstdlib>
+#include <initializer_list>
+#include <iostream>
+
+namespace {
+
+// Species index used for all per-species histogram arrays
+enum Species { kAll = 0, kPion, kKaon, kProton, kNSpecies };
+
+const std::array<const char*, kNSpecies> kSpeciesTag   = {"h", "pi", "K", "p"};
+const std::array<const char*, kNSpecies> kSpeciesLabel = {"h^{#pm}", "#pi^{#pm}", "K^{#pm}", "p/#bar{p}"};
+const std::array<int, kNSpecies>         kSpeciesColor = {kBlack, kBlue, kRed, kGreen + 2};
+
+// Returns pion/kaon/proton index for charged pi, K, p (and antiparticles), -1 otherwise
+int speciesFromPid(int pid)
+{
+    switch (std::abs(pid)) {
+        case 211:  return kPion;
+        case 321:  return kKaon;
+        case 2212: return kProton;
+        default:   return -1;
+    }
+}
+
+// Pseudorapidity from 3-momentum (no TLorentzVector construction needed)
+double pseudorapidity(double px, double py, double pz)
+{
+    const double p = std::sqrt(px * px + py * py + pz * pz);
+    if (p == std::abs(pz)) return pz >= 0 ? 1e10 : -1e10; // along the beam
+    return 0.5 * std::log((p + pz) / (p - pz));
+}
+
+// Common histogram styling
+template <class H>
+H* style(H* h, const char* xtitle, const char* ytitle = nullptr, int color = kBlack)
+{
+    h->GetXaxis()->SetTitle(xtitle);
+    h->GetXaxis()->CenterTitle();
+    if (ytitle) {
+        h->GetYaxis()->SetTitle(ytitle);
+        h->GetYaxis()->CenterTitle();
+    }
+    h->SetLineColor(color);
+    h->SetLineWidth(2);
+    return h;
+}
+
+} // namespace
+
+void forward_hadrons(TString energy = "510GeV",
+                     TString sample = "hard_ptmin3",
+                     TString indir  = "../out")
+{
+    //---------------------------------------------------------------- Style
     gStyle->SetOptStat(0);
     gStyle->SetPadBorderMode(0);
     gStyle->SetFrameBorderMode(0);
     gStyle->SetFrameLineWidth(2);
-    gStyle->SetLabelSize(0.035,"X");
-    gStyle->SetLabelSize(0.035,"Y");
-    //gStyle->SetLabelOffset(0.01,"X");
-    //gStyle->SetLabelOffset(0.01,"Y");
+    gStyle->SetLabelSize(0.035, "X");
+    gStyle->SetLabelSize(0.035, "Y");
     gStyle->SetTitleXSize(0.04);
     gStyle->SetTitleXOffset(0.9);
     gStyle->SetTitleYSize(0.04);
     gStyle->SetTitleYOffset(0.9);
+    gStyle->SetPadRightMargin(0.13); // room for colz palettes
 
-    //Define histograms
-    TH1 *h1 = new TH1D("h1","Number of charged hadrons: 2.5 < #eta < 4.0",20,0,20);
-    h1->GetXaxis()->SetTitle("Number of particles per event");h1->GetXaxis()->CenterTitle();
-    //h1->GetXaxis()->CenterLabels();
-    h1->SetLineColor(kBlack);h1->SetLineWidth(2);
+    //---------------------------------------------------------------- Settings
+    const double eta_min = 2.5;   // forward acceptance
+    const double eta_max = 4.0;
+    const double fcs_z   = 725.0; // front face of FCS [cm]
 
-    TH1 *h2 = new TH1D("h2","Charged hadron spectrum: 2.5 < #eta < 4.0",100,-0.2,12);
-    h2->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h2->GetXaxis()->CenterTitle();
-    h2->SetLineColor(kBlack);h2->SetLineWidth(2);
+    // Wider eta window for the Pt vs eta plots, so the forward acceptance
+    // can be seen in context (marked with lines on the plot)
+    const double eta_wide_min = -1.0;
+    const double eta_wide_max = 6.0;
 
-    TH1 *h2a = new TH1D("h2a","Charged hadron spectrum: 2.5 < #eta < 4.0",100,-0.2,12); //Charged pions
-    h2a->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h2a->GetXaxis()->CenterTitle();
-    h2a->SetLineColor(kBlue);h2a->SetLineWidth(2);
+    //---------------------------------------------------------------- Open file
+    const TString infile  = indir + "/" + energy + "/RHIC_pp_" + sample + ".root";
+    const TString outfile = "forward_hadrons_" + energy + "_" + sample + ".pdf";
 
-    TH1 *h2b = new TH1D("h2b","Charged hadron spectrum: 2.5 < #eta < 4.0",100,-0.2,12); //Charged kaons
-    h2b->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h2b->GetXaxis()->CenterTitle();
-    h2b->SetLineColor(kRed);h2b->SetLineWidth(2);
+    TFile* f = TFile::Open(infile);
+    if (!f || f->IsZombie()) {
+        std::cerr << "ERROR: cannot open " << infile << std::endl;
+        return;
+    }
+    TTree* tree = f->Get<TTree>("hepmc3_tree");
+    if (!tree) {
+        std::cerr << "ERROR: no hepmc3_tree in " << infile << std::endl;
+        return;
+    }
+    std::cout << "Reading " << infile << " (" << tree->GetEntries() << " events)" << std::endl;
 
-    TH1 *h2c = new TH1D("h2c","Charged hadron spectrum: 2.5 < #eta < 4.0",100,-0.2,12); //(Anti-)Protons
-    h2c->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h2->GetXaxis()->CenterTitle();
-    h2c->SetLineColor(kGreen);h2c->SetLineWidth(2); 
+    // Fallback sqrt(s) from the folder name, e.g. "510GeV" -> 510
+    const double sqrts_fallback = std::atof(energy.Data());
 
-    TH1 *h3 = new TH1D("h3","Charged hadron spectrum: 2.5 < #eta < 4.0",100,2.4,4.1);
-    h3->GetXaxis()->SetTitle("Hadron #eta");h3->GetXaxis()->CenterTitle();
-    h3->SetLineColor(kBlack);h3->SetLineWidth(2);
+    //---------------------------------------------------------------- Histograms
+    // Keep histograms out of the input file's directory so they survive f->Close()
+    TH1::AddDirectory(kFALSE);
 
-    TH1 *h3a = new TH1D("h3a","Charged hadron spectrum: 2.5 < #eta < 4.0",100,2.4,4.1); //Charged pions
-    h3a->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h3a->GetXaxis()->CenterTitle();
-    h3a->SetLineColor(kBlue);h3a->SetLineWidth(2);
+    const TString acc = Form("%.1f < #eta < %.1f", eta_min, eta_max);
 
-    TH1 *h3b = new TH1D("h3b","Charged hadron spectrum: 2.5 < #eta < 4.0",100,2.4,4.1); //Charged kaons
-    h3b->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h3b->GetXaxis()->CenterTitle();
-    h3b->SetLineColor(kRed);h3b->SetLineWidth(2);
+    TH1D* h1 = style(new TH1D("h1", "Number of charged hadrons: " + acc, 20, 0, 20),
+                     "Number of particles per event");
 
-    TH1 *h3c = new TH1D("h3c","Charged hadron spectrum: 2.5 < #eta < 4.0",100,2.4,4.1); //(Anti-)Protons
-    h3c->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h3->GetXaxis()->CenterTitle();
-    h3c->SetLineColor(kGreen);h3c->SetLineWidth(2);
+    TH1D* h4 = style(new TH1D("h4", "Highest P_{t} charged hadron in " + acc, 100, -0.2, 12),
+                     "Hadron P_{t} [GeV/c]");
 
-    TH1 *h4 = new TH1D("h4","Highest P_{t} Charged hadron in 2.5 < #eta < 4.0",100,-0.2,12);
-    h4->GetXaxis()->SetTitle("Hadron P_{t} [GeV/c]");h4->GetXaxis()->CenterTitle();
-    h4->SetLineColor(kBlack);h4->SetLineWidth(2);
+    TH2D* h5 = style(new TH2D("h5", "Charged hadrons projected to front of FCS",
+                              100, -150, 150, 100, -150, 150),
+                     "X position [cm]", "Y position [cm]");
 
-    TH2 *h5 = new TH2D("h5","Charged hadrons projected to front of FCS",100,-150,150,100,-150,150);
-    h5->GetXaxis()->SetTitle("X position [cm]");h5->GetXaxis()->CenterTitle();
-    h5->GetYaxis()->SetTitle("Y position [cm]");h5->GetYaxis()->CenterTitle();
+    // Per-species histograms: index with kAll, kPion, kKaon, kProton
+    std::array<TH1D*, kNSpecies> hPt{}, hEta{};
+    std::array<TH2D*, kNSpecies> hPtEta{}, hPtXf{};
 
-    //Open file
-    TFile *f = new TFile("../out/510GeV/RHIC_pp_hard_ptmin3.root");
-    TTree *tree = (TTree*) f->Get("hepmc3_tree");
+    for (int s = 0; s < kNSpecies; ++s) {
+        const char* tag = kSpeciesTag[s];
+        const char* lab = kSpeciesLabel[s];
 
-    //Create Array Reader
+        hPt[s] = style(new TH1D(Form("hPt_%s", tag), "Charged hadron spectrum: " + acc, 100, -0.2, 12),
+                       "Hadron P_{t} [GeV/c]", nullptr, kSpeciesColor[s]);
+
+        hEta[s] = style(new TH1D(Form("hEta_%s", tag), "Charged hadron spectrum: " + acc, 100, 2.4, 4.1),
+                        "Hadron #eta", nullptr, kSpeciesColor[s]);
+
+        // NEW: Pt vs eta (wide eta window)
+        hPtEta[s] = style(new TH2D(Form("hPtEta_%s", tag), Form("%s: P_{t} vs. #eta", lab),
+                                   140, eta_wide_min, eta_wide_max, 120, 0, 12),
+                          "Hadron #eta", "Hadron P_{t} [GeV/c]");
+
+        // NEW: Pt vs xF (forward acceptance)
+        hPtXf[s] = style(new TH2D(Form("hPtXf_%s", tag), Form("%s in %s: P_{t} vs. x_{F}", lab, acc.Data()),
+                                  100, 0, 1, 120, 0, 12),
+                         "x_{F} = 2p_{z}/#sqrt{s}", "Hadron P_{t} [GeV/c]");
+    }
+
+    //---------------------------------------------------------------- Tree reader
     TTreeReader tr(tree);
-
     TTreeReaderArray<double> gen_px(tr, "particles.momentum.m_v1");
     TTreeReaderArray<double> gen_py(tr, "particles.momentum.m_v2");
     TTreeReaderArray<double> gen_pz(tr, "particles.momentum.m_v3");
-    TTreeReaderArray<double> gen_E(tr, "particles.momentum.m_v4");
-    TTreeReaderArray<int> gen_pid(tr, "particles.pid");
-    TTreeReaderArray<int> gen_status(tr, "particles.status");
+    TTreeReaderArray<double> gen_E (tr, "particles.momentum.m_v4");
+    TTreeReaderArray<int>    gen_pid(tr, "particles.pid");
+    TTreeReaderArray<int>    gen_status(tr, "particles.status");
 
-    //Other variables
-    int counter(0);
-    const int pion_id = 211; //pi+ pdg id
-    const int kaon_id = 321; //K+ pdg id
-    const int prot_id = 2212; //Proton pdg id
-    const double fcs_z = 725.0; //Front face of FCS (in cm)
+    //---------------------------------------------------------------- Event loop
+    long counter = 0;
+    double sqrts_first = -1; // first value found, for printing / labels
+    bool warned_fallback = false;
 
-    //TDatabasePDG *pdg = new TDatabasePDG();
-
-    //Loop over events
     while (tr.Next()) {
 
-	//Reset variables
-	int num_fwd_hadrons = 0;
-	double pt_max = -9999;
+        if (counter % 1000 == 0) std::cout << "Analyzing event " << counter << std::endl;
+        counter++;
 
-	if(counter%1000==0) cout<<"Analyzing event "<<counter<<endl;
-	counter++;
+        const int npart = gen_px.GetSize();
 
-        //Loop over generated particles
-        for(int igen=0;igen<gen_px.GetSize();igen++){
-		if(gen_status[igen]==1){
-	    		//Get particle information from database
-	    		//TParticlePDG *particle = pdg->GetParticle(gen_pid[igen]);
-			//double charge = particle->Charge();
+        // --- sqrt(s) from the two beam particles (status 4)
+        double bE = 0, bpx = 0, bpy = 0, bpz = 0;
+        int nbeam = 0;
+        for (int i = 0; i < npart && nbeam < 2; ++i) {
+            if (gen_status[i] != 4) continue;
+            bE += gen_E[i]; bpx += gen_px[i]; bpy += gen_py[i]; bpz += gen_pz[i];
+            ++nbeam;
+        }
+        double sqrts = sqrts_fallback;
+        if (nbeam == 2) {
+            sqrts = std::sqrt(bE * bE - bpx * bpx - bpy * bpy - bpz * bpz);
+        } else if (!warned_fallback) {
+            std::cerr << "WARNING: beam particles not found; using sqrt(s) = "
+                      << sqrts_fallback << " GeV from the folder name" << std::endl;
+            warned_fallback = true;
+        }
+        if (sqrts_first < 0) {
+            sqrts_first = sqrts;
+            std::cout << "sqrt(s) = " << sqrts << " GeV" << std::endl;
+        }
 
-			//See if particle is a charged hadron
-			bool charged_pion = false;
-			if( fabs(gen_pid[igen])==pion_id ) charged_pion = true;
+        // --- particle loop
+        int num_fwd_hadrons = 0;
+        double pt_max = -1;
 
-			bool charged_kaon = false;
-			if( fabs(gen_pid[igen])==kaon_id ) charged_kaon = true;
+        for (int i = 0; i < npart; ++i) {
+            if (gen_status[i] != 1) continue;               // final state only
+            const int sp = speciesFromPid(gen_pid[i]);
+            if (sp < 0) continue;                           // charged pi/K/p only
 
-			bool charged_prot = false;
-			if( fabs(gen_pid[igen])==prot_id ) charged_prot = true;
+            const double px = gen_px[i], py = gen_py[i], pz = gen_pz[i];
+            const double pt  = std::hypot(px, py);
+            const double eta = pseudorapidity(px, py, pz);
 
-			//Particle 4-momentum
-            		TLorentzVector particle_vec(gen_px[igen],gen_py[igen],gen_pz[igen],gen_E[igen]);
+            // Pt vs eta over the wide window
+            hPtEta[kAll]->Fill(eta, pt);
+            hPtEta[sp]->Fill(eta, pt);
 
-			//Look for charged hadrons in forward rapidities
-			if( particle_vec.Eta()>2.5 && particle_vec.Eta()<4.0 && 
-			    (charged_pion || charged_kaon || charged_prot) ){
-				
-				num_fwd_hadrons++;
-				h2->Fill(particle_vec.Pt());
-				h3->Fill(particle_vec.Eta());
+            if (eta <= eta_min || eta >= eta_max) continue; // forward acceptance
 
-				if(charged_pion){
-					h2a->Fill(particle_vec.Pt());
-                                	h3a->Fill(particle_vec.Eta());
-				}
-				else if(charged_kaon){
-                                        h2b->Fill(particle_vec.Pt());
-                                        h3b->Fill(particle_vec.Eta());
-                                }
-				else if(charged_prot){
-                                        h2c->Fill(particle_vec.Pt());
-                                        h3c->Fill(particle_vec.Eta());
-                                }
+            const double xF = 2.0 * pz / sqrts;             // collider: lab = CM frame
 
-				//Find highest Pt charged hadron in 2.5 < eta < 4.0
-				pt_max = std::max(particle_vec.Pt(),pt_max);
+            num_fwd_hadrons++;
+            pt_max = std::max(pt, pt_max);
 
-				//Project to FCS
-				auto pos_x = fcs_z * ( particle_vec.Px() / particle_vec.Pz() );
-				auto pos_y = fcs_z * ( particle_vec.Py() / particle_vec.Pz() );
-				h5->Fill(pos_x,pos_y);	
+            for (int s : {static_cast<int>(kAll), sp}) {
+                hPt[s]->Fill(pt);
+                hEta[s]->Fill(eta);
+                hPtXf[s]->Fill(xF, pt);
+            }
 
-			}//End if charged-hadrons
-		} //End if final-state particles
-        } //End loop over generated particles
+            // Straight-line projection to the FCS (no magnetic field)
+            h5->Fill(fcs_z * px / pz, fcs_z * py / pz);
+        }
 
-	//Fill event-level histograms
-	h1->Fill(num_fwd_hadrons);
-	h4->Fill(pt_max);
+        h1->Fill(num_fwd_hadrons);
+        if (num_fwd_hadrons > 0) h4->Fill(pt_max);
+    }
 
-    } // End loop over events
+    f->Close();
+    std::cout << "Processed " << counter << " events" << std::endl;
 
-    //Make plots
-    TCanvas *c1 = new TCanvas("c1");
-    h1->Draw("");
+    //---------------------------------------------------------------- Plots
+    // Add sqrt(s) and sample name to every histogram title
+    const TString runLabel = Form(" (#sqrt{s} = %.0f GeV, %s)", sqrts_first, sample.Data());
+    for (TH1* h : std::initializer_list<TH1*>{h1, h4, h5}) h->SetTitle(TString(h->GetTitle()) + runLabel);
+    for (int s = 0; s < kNSpecies; ++s) {
+        for (TH1* h : std::initializer_list<TH1*>{hPt[s], hEta[s], hPtEta[s], hPtXf[s]})
+            h->SetTitle(TString(h->GetTitle()) + runLabel);
+        // Larger axis text for the 2x2 panels
+        for (TH1* h : std::initializer_list<TH1*>{hPtEta[s], hPtXf[s]}) {
+            for (TAxis* ax : {h->GetXaxis(), h->GetYaxis()}) {
+                ax->SetTitleSize(0.05);
+                ax->SetLabelSize(0.045);
+            }
+            h->GetXaxis()->SetTitleOffset(0.95);
+            h->GetYaxis()->SetTitleOffset(0.85);
+        }
+    }
 
-    TCanvas *c2 = new TCanvas("c2");
+    auto makeLegend = [](const std::array<TH1D*, kNSpecies>& h) {
+        TLegend* leg = new TLegend(0.7, 0.7, 0.85, 0.85);
+        leg->SetBorderSize(0);
+        for (int s = 0; s < kNSpecies; ++s) leg->AddEntry(h[s], kSpeciesLabel[s], "l");
+        return leg;
+    };
+
+    TCanvas* c1 = new TCanvas("c1");
+    h1->Draw();
+
+    TCanvas* c2 = new TCanvas("c2");
     c2->SetLogy();
-    h2->Draw("");
-    h2a->Draw("same");h2b->Draw("same");h2c->Draw("same");
+    for (int s = 0; s < kNSpecies; ++s) hPt[s]->Draw(s == 0 ? "" : "same");
+    makeLegend(hPt)->Draw();
 
-    TLegend *legc2 = new TLegend(0.7,0.7,0.85,0.85);
-    legc2->SetBorderSize(0);
-    legc2->AddEntry("h2","h^{#pm}","l");
-    legc2->AddEntry("h2a","#pi^{#pm}","l");
-    legc2->AddEntry("h2b","K^{#pm}","l");
-    legc2->AddEntry("h2c","p^{#pm}","l");
-    legc2->Draw();
+    TCanvas* c3 = new TCanvas("c3");
+    for (int s = 0; s < kNSpecies; ++s) hEta[s]->Draw(s == 0 ? "" : "same");
+    makeLegend(hEta)->Draw();
 
-    TCanvas *c3 = new TCanvas("c3");
-    //c3->SetLogy();
-    h3->Draw();
-    h3a->Draw("same");h3b->Draw("same");h3c->Draw("same");
-
-    TLegend *legc3 = new TLegend(0.7,0.7,0.85,0.85);
-    legc3->SetBorderSize(0);
-    legc3->AddEntry("h3","h^{#pm}","l");
-    legc3->AddEntry("h3a","#pi^{#pm}","l");
-    legc3->AddEntry("h3b","K^{#pm}","l");
-    legc3->AddEntry("h3c","p^{#pm}","l");
-    legc3->Draw();
-
-    TCanvas *c4 = new TCanvas("c4");
+    TCanvas* c4 = new TCanvas("c4");
     c4->SetLogy();
-    h4->Draw("");
+    h4->Draw();
 
-    TCanvas *c5 = new TCanvas("c5");
+    TCanvas* c5 = new TCanvas("c5");
     h5->Draw("colz");
+    {
+        TLatex tex;
+        tex.SetTextSize(0.035);
+        tex.DrawLatex(-130, 135, acc);
+        tex.DrawLatex(-130, 120, "Ignoring magnetic field");
+    }
 
-    TLatex *tex_c51 = new TLatex();
-    tex_c51->SetTextSize(0.035);
-    tex_c51->DrawLatex(-130,135,"2.5 < #eta < 4.0");
-    tex_c51->DrawLatex(-130,120,"Ignoring magnetic field");
+    // NEW: Pt vs eta, 2x2 (all, pi, K, p), forward acceptance marked
+    TCanvas* c6 = new TCanvas("c6", "Pt vs eta", 1000, 800);
+    c6->Divide(2, 2);
+    for (int s = 0; s < kNSpecies; ++s) {
+        c6->cd(s + 1);
+        gPad->SetLogz();
+        gPad->SetRightMargin(0.14);
+        gPad->SetLeftMargin(0.12);
+        gPad->SetBottomMargin(0.12);
+        hPtEta[s]->Draw("colz");
+        for (double e : {eta_min, eta_max}) {
+            TLine* l = new TLine(e, 0, e, hPtEta[s]->GetYaxis()->GetXmax());
+            l->SetLineStyle(2);
+            l->SetLineWidth(2);
+            l->Draw();
+        }
+    }
 
-    //Print plots to file
-    c1->Print("forward_hadrons.pdf[");
-    c1->Print("forward_hadrons.pdf");
-    c2->Print("forward_hadrons.pdf");
-    c3->Print("forward_hadrons.pdf");
-    c4->Print("forward_hadrons.pdf");
-    c5->Print("forward_hadrons.pdf");
-    c5->Print("forward_hadrons.pdf]");
+    // NEW: Pt vs xF, 2x2 (all, pi, K, p), forward acceptance only
+    TCanvas* c7 = new TCanvas("c7", "Pt vs xF", 1000, 800);
+    c7->Divide(2, 2);
+    for (int s = 0; s < kNSpecies; ++s) {
+        c7->cd(s + 1);
+        gPad->SetLogz();
+        gPad->SetRightMargin(0.14);
+        gPad->SetLeftMargin(0.12);
+        gPad->SetBottomMargin(0.12);
+        hPtXf[s]->Draw("colz");
+    }
 
+    //---------------------------------------------------------------- Output
+    TCanvas* canvases[] = {c1, c2, c3, c4, c5, c6, c7};
+    canvases[0]->Print(outfile + "[");
+    for (TCanvas* c : canvases) c->Print(outfile);
+    canvases[0]->Print(outfile + "]");
+    std::cout << "Wrote " << outfile << std::endl;
 }
